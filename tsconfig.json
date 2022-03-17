@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "moduleResolution": "node",
+    "module": "es2015",
+    "outDir": "./dist",
+    "declaration": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "esModuleInterop": true,
+    "strict": true,
+    "pretty": true,
+    "resolveJsonModule": true,
+    "lib": ["es2020", "dom"],
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
+}

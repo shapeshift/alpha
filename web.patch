@@ -1,0 +1,146 @@
+From 7d3c1f644348caa6ef4e669bb6126fa0b1b55b18 Mon Sep 17 00:00:00 2001
+From: MrNerdHair <mrnerdhair@gmail.com>
+Date: Thu, 17 Mar 2022 19:33:57 -0400
+Subject: [PATCH] ALPHA PATCH, DO NOT COMMIT
+
+---
+ .gitignore            |  4 +++-
+ headers.js            | 41 ++++++++++++++++++++++++++++++++++-------
+ public/index.html     |  3 ++-
+ scripts/sha256sums.sh |  2 +-
+ 4 files changed, 40 insertions(+), 10 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index a6c5c19..bcc70de 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -29,4 +29,6 @@ yarn-error.log*
+ 
+ # idea
+ *.iml
+-.idea/
+\ No newline at end of file
++.idea/
++
++public/alpha.modern.*
+diff --git a/headers.js b/headers.js
+index 11ee90b..2697318 100644
+--- a/headers.js
++++ b/headers.js
+@@ -2,7 +2,12 @@ require('dotenv').config()
+ 
+ const cspMeta = Object.entries({
+   'default-src': ["'self'"],
+-  'child-src': ["'self'", 'blob:', "'report-sample'"],
++  'child-src': [
++    "'self'",
++    'blob:',
++    'https://app.pendo.io',
++    "'report-sample'"
++  ],
+   'connect-src': [
+     "'self'",
+     'data:',
+@@ -52,9 +57,16 @@ const cspMeta = Object.entries({
+     process.env.REACT_APP_UNCHAINED_BITCOIN_HTTP_URL,
+     process.env.REACT_APP_UNCHAINED_BITCOIN_WS_URL,
+     process.env.REACT_APP_UNCHAINED_COSMOS_HTTP_URL,
+-    process.env.REACT_APP_UNCHAINED_COSMOS_WS_URL
++    process.env.REACT_APP_UNCHAINED_COSMOS_WS_URL,
++    'https://app.pendo.io',
++    'https://data.pendo.io',
++    'https://pendo-static-6047664892149760.storage.googleapis.com',
++  ],
++  'frame-src': [
++    'https://fwd.metamask.io/',
++    'https://widget.portis.io',
++    'https://app.pendo.io'
+   ],
+-  'frame-src': ['https://fwd.metamask.io/', 'https://widget.portis.io'],
+   'img-src': [
+     "'self'",
+     'data:',
+@@ -70,16 +82,32 @@ const cspMeta = Object.entries({
+     'https://assets.yearn.network/tokens/',
+     'https://raw.githubusercontent.com/yearn/yearn-assets/',
+     'https://rawcdn.githack.com/trustwallet/assets/',
+-    'https://raw.githubusercontent.com/osmosis-labs/'
++    'https://raw.githubusercontent.com/osmosis-labs/',
++    'https://cdn.pendo.io',
++    'https://app.pendo.io',
++    'https://pendo-static-6047664892149760.storage.googleapis.com',
++    'https://data.pendo.io',
+   ],
+   'script-src': [
+     "'self'",
+     'blob:',
+     "'unsafe-eval'", //TODO: There are still a couple of libraries we depend on that use eval; notably amqp-ts and google-protobuf.
+     "'unsafe-inline'", //TODO: The only inline code we need is the stub injected by Metamask. We can fix this by including the stub in our own bundle.
++    'https://app.pendo.io',
++    'https://pendo-io-static.storage.googleapis.com',
++    'https://cdn.pendo.io',
++    'https://pendo-static-6047664892149760.storage.googleapis.com',
++    'https://data.pendo.io',
++    "'report-sample'"
++  ],
++  'style-src': [
++    "'self'",
++    "'unsafe-inline'",
++    'https://app.pendo.io',
++    'https://cdn.pendo.io',
++    'https://pendo-static-6047664892149760.storage.googleapis.com',
+     "'report-sample'"
+   ],
+-  'style-src': ["'self'", "'unsafe-inline'", "'report-sample'"],
+   'base-uri': ["'none'"],
+   'object-src': ["'none'"]
+ })
+@@ -88,12 +116,11 @@ const cspMeta = Object.entries({
+ 
+ const headers = {
+   'Cache-Control': 'no-transform', // This will prevent middleboxes from munging our JS and breaking SRI if we're ever served over HTTP
+-  'Content-Security-Policy': `${cspMeta}; frame-ancestors 'none'`, // `; report-uri https://shapeshift.report-uri.com/r/d/csp/wizard`,
++//  'Content-Security-Policy': `${cspMeta}; frame-ancestors https://app.pendo.io`, // `; report-uri https://shapeshift.report-uri.com/r/d/csp/wizard`,
+   'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+   'Permissions-Policy': 'document-domain=()',
+   'Referrer-Policy': 'no-referrer',
+   'X-Content-Type-Options': 'nosniff',
+-  'X-Frame-Options': 'DENY'
+ }
+ 
+ module.exports = {
+diff --git a/public/index.html b/public/index.html
+index 66a6c22..f70b445 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -4,7 +4,7 @@
+     <meta charset="utf-8" />
+     <meta name="referrer" content="no-referrer">
+     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+-    <meta http-equiv="Content-Security-Policy" content="%REACT_APP_CSP_META%" />
++    <!--<meta http-equiv="Content-Security-Policy" content="%REACT_APP_CSP_META%" />-->
+     <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon.png" integrity="%REACT_APP_SRI_FAVICON_PNG%" crossorigin="anonymous" />
+     <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon.svg" integrity="%REACT_APP_SRI_FAVICON_SVG%" crossorigin="anonymous" />
+     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no,viewport-fit=cover" />
+@@ -37,6 +37,7 @@
+       Learn how to configure a non-root public URL by running `npm run build`.
+     -->
+     <title>ShapeShift</title>
++    <script defer="defer" src="%PUBLIC_URL%/alpha.modern.js" integrity="%REACT_APP_SRI_ALPHA_MODERN_JS%" crossorigin="anonymous"></script>
+   </head>
+   <body>
+     <noscript>You need to enable JavaScript to run this app.</noscript>
+diff --git a/scripts/sha256sums.sh b/scripts/sha256sums.sh
+index 9e4bf9b..e6bfe6b 100755
+--- a/scripts/sha256sums.sh
++++ b/scripts/sha256sums.sh
+@@ -2,5 +2,5 @@
+ 
+ rm -f ./build/SHA256SUMS
+ TEMP=$(mktemp)
+-find ./build -type f | xargs shasum -a 256 | sed -r 's/^([0-9a-f]{64}\s+)\.\/build\//\1/' | LC_ALL=C sort -k 2 | tee "$TEMP"
++find -L ./build -type f | xargs shasum -a 256 | sed -r 's/^([0-9a-f]{64}\s+)\.\/build\//\1/' | LC_ALL=C sort -k 2 | tee "$TEMP"
+ mv "$TEMP" ./build/SHA256SUMS
+-- 
+2.32.0
+
