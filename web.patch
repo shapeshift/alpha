@@ -1,17 +1,17 @@
-From 7d3c1f644348caa6ef4e669bb6126fa0b1b55b18 Mon Sep 17 00:00:00 2001
+From d055315f9d36a6e5cbd835424021dcfb0b68b81a Mon Sep 17 00:00:00 2001
 From: MrNerdHair <mrnerdhair@gmail.com>
-Date: Thu, 17 Mar 2022 19:33:57 -0400
+Date: Thu, 14 Apr 2022 14:17:42 -0400
 Subject: [PATCH] ALPHA PATCH, DO NOT COMMIT
 
 ---
  .gitignore            |  4 +++-
- headers.js            | 41 ++++++++++++++++++++++++++++++++++-------
+ headers.js            | 38 +++++++++++++++++++++++++++++++++-----
  public/index.html     |  3 ++-
  scripts/sha256sums.sh |  2 +-
- 4 files changed, 40 insertions(+), 10 deletions(-)
+ 4 files changed, 39 insertions(+), 8 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
-index a6c5c19..bcc70de 100644
+index a6c5c191..bcc70de3 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -29,4 +29,6 @@ yarn-error.log*
@@ -24,7 +24,7 @@ index a6c5c19..bcc70de 100644
 +
 +public/alpha.modern.*
 diff --git a/headers.js b/headers.js
-index 11ee90b..2697318 100644
+index 1923a4bd..1ad8c5b5 100644
 --- a/headers.js
 +++ b/headers.js
 @@ -2,7 +2,12 @@ require('dotenv').config()
@@ -36,17 +36,15 @@ index 11ee90b..2697318 100644
 +    "'self'",
 +    'blob:',
 +    'https://app.pendo.io',
-+    "'report-sample'"
++    "'report-sample'",
 +  ],
    'connect-src': [
      "'self'",
      'data:',
-@@ -52,9 +57,16 @@ const cspMeta = Object.entries({
-     process.env.REACT_APP_UNCHAINED_BITCOIN_HTTP_URL,
+@@ -56,8 +61,15 @@ const cspMeta = Object.entries({
      process.env.REACT_APP_UNCHAINED_BITCOIN_WS_URL,
      process.env.REACT_APP_UNCHAINED_COSMOS_HTTP_URL,
--    process.env.REACT_APP_UNCHAINED_COSMOS_WS_URL
-+    process.env.REACT_APP_UNCHAINED_COSMOS_WS_URL,
+     process.env.REACT_APP_UNCHAINED_COSMOS_WS_URL,
 +    'https://app.pendo.io',
 +    'https://data.pendo.io',
 +    'https://pendo-static-6047664892149760.storage.googleapis.com',
@@ -54,18 +52,16 @@ index 11ee90b..2697318 100644
 +  'frame-src': [
 +    'https://fwd.metamask.io/',
 +    'https://widget.portis.io',
-+    'https://app.pendo.io'
++    'https://app.pendo.io',
    ],
 -  'frame-src': ['https://fwd.metamask.io/', 'https://widget.portis.io'],
    'img-src': [
      "'self'",
      'data:',
-@@ -70,16 +82,32 @@ const cspMeta = Object.entries({
-     'https://assets.yearn.network/tokens/',
-     'https://raw.githubusercontent.com/yearn/yearn-assets/',
-     'https://rawcdn.githack.com/trustwallet/assets/',
--    'https://raw.githubusercontent.com/osmosis-labs/'
-+    'https://raw.githubusercontent.com/osmosis-labs/',
+@@ -78,15 +90,31 @@ const cspMeta = Object.entries({
+     'https://raw.githack.com/shapeshift/lib/',
+     'https://raw.githubusercontent.com/shapeshift/lib/',
+     'https://raw.githubusercontent.com/cosmostation/',
 +    'https://cdn.pendo.io',
 +    'https://app.pendo.io',
 +    'https://pendo-static-6047664892149760.storage.googleapis.com',
@@ -81,7 +77,7 @@ index 11ee90b..2697318 100644
 +    'https://cdn.pendo.io',
 +    'https://pendo-static-6047664892149760.storage.googleapis.com',
 +    'https://data.pendo.io',
-+    "'report-sample'"
++    "'report-sample'",
 +  ],
 +  'style-src': [
 +    "'self'",
@@ -89,28 +85,29 @@ index 11ee90b..2697318 100644
 +    'https://app.pendo.io',
 +    'https://cdn.pendo.io',
 +    'https://pendo-static-6047664892149760.storage.googleapis.com',
-     "'report-sample'"
+     "'report-sample'",
    ],
 -  'style-src': ["'self'", "'unsafe-inline'", "'report-sample'"],
    'base-uri': ["'none'"],
-   'object-src': ["'none'"]
+   'object-src': ["'none'"],
  })
-@@ -88,12 +116,11 @@ const cspMeta = Object.entries({
+@@ -95,12 +123,12 @@ const cspMeta = Object.entries({
  
  const headers = {
    'Cache-Control': 'no-transform', // This will prevent middleboxes from munging our JS and breaking SRI if we're ever served over HTTP
 -  'Content-Security-Policy': `${cspMeta}; frame-ancestors 'none'`, // `; report-uri https://shapeshift.report-uri.com/r/d/csp/wizard`,
-+//  'Content-Security-Policy': `${cspMeta}; frame-ancestors https://app.pendo.io`, // `; report-uri https://shapeshift.report-uri.com/r/d/csp/wizard`,
++//  'Content-Security-Policy': `${cspMeta}; frame-ancestors 'none'`, // `; report-uri https://shapeshift.report-uri.com/r/d/csp/wizard`,
    'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
    'Permissions-Policy': 'document-domain=()',
    'Referrer-Policy': 'no-referrer',
    'X-Content-Type-Options': 'nosniff',
--  'X-Frame-Options': 'DENY'
+-  'X-Frame-Options': 'DENY',
++//  'X-Frame-Options': 'DENY',
  }
  
  module.exports = {
 diff --git a/public/index.html b/public/index.html
-index 66a6c22..f70b445 100644
+index 66a6c225..f70b4451 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,7 +4,7 @@
@@ -131,7 +128,7 @@ index 66a6c22..f70b445 100644
    <body>
      <noscript>You need to enable JavaScript to run this app.</noscript>
 diff --git a/scripts/sha256sums.sh b/scripts/sha256sums.sh
-index 9e4bf9b..e6bfe6b 100755
+index 9e4bf9b9..e6bfe6bb 100755
 --- a/scripts/sha256sums.sh
 +++ b/scripts/sha256sums.sh
 @@ -2,5 +2,5 @@
