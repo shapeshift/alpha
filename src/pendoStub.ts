@@ -94,7 +94,7 @@ export function installPendoStub() {
 }
 
 export function loadPendoAgent(agentIntegrity: string, pendoOptions: Record<string, unknown>, pendoInitializeParams: PendoInitializeParams) {
-  window.pendo_options = Object.freeze(pendoOptions)
+  window.pendo_options = pendoOptions
   installPendoStub()
   window.pendo!.initialize(pendoInitializeParams)
 
