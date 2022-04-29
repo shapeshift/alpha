@@ -1,4 +1,4 @@
-From d055315f9d36a6e5cbd835424021dcfb0b68b81a Mon Sep 17 00:00:00 2001
+From ae17c339e9dbc1f9f692511a7528373906a30434 Mon Sep 17 00:00:00 2001
 From: MrNerdHair <mrnerdhair@gmail.com>
 Date: Thu, 14 Apr 2022 14:17:42 -0400
 Subject: [PATCH] ALPHA PATCH, DO NOT COMMIT
@@ -24,7 +24,7 @@ index a6c5c191..bcc70de3 100644
 +
 +public/alpha.modern.*
 diff --git a/headers.js b/headers.js
-index 1923a4bd..1ad8c5b5 100644
+index bf5f1133..48d70981 100644
 --- a/headers.js
 +++ b/headers.js
 @@ -2,7 +2,12 @@ require('dotenv').config()
@@ -42,9 +42,9 @@ index 1923a4bd..1ad8c5b5 100644
      "'self'",
      'data:',
 @@ -56,8 +61,15 @@ const cspMeta = Object.entries({
-     process.env.REACT_APP_UNCHAINED_BITCOIN_WS_URL,
-     process.env.REACT_APP_UNCHAINED_COSMOS_HTTP_URL,
-     process.env.REACT_APP_UNCHAINED_COSMOS_WS_URL,
+     // Explicitly whitelist our KeepKey versions file
+     process.env.REACT_APP_KEEPKEY_VERSIONS_URL,
+     process.env.REACT_APP_WALLET_MIGRATION_URL,
 +    'https://app.pendo.io',
 +    'https://data.pendo.io',
 +    'https://pendo-static-6047664892149760.storage.googleapis.com',
@@ -107,7 +107,7 @@ index 1923a4bd..1ad8c5b5 100644
  
  module.exports = {
 diff --git a/public/index.html b/public/index.html
-index 66a6c225..f70b4451 100644
+index a9e4cf56..3218dde7 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,7 +4,7 @@
