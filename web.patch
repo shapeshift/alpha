@@ -1,14 +1,13 @@
-From ae17c339e9dbc1f9f692511a7528373906a30434 Mon Sep 17 00:00:00 2001
+From 3c3c165ebc5c66ebf84bfcda313dbbe52941384b Mon Sep 17 00:00:00 2001
 From: MrNerdHair <mrnerdhair@gmail.com>
 Date: Thu, 14 Apr 2022 14:17:42 -0400
 Subject: [PATCH] ALPHA PATCH, DO NOT COMMIT
 
 ---
- .gitignore            |  4 +++-
- headers.js            | 38 +++++++++++++++++++++++++++++++++-----
- public/index.html     |  3 ++-
- scripts/sha256sums.sh |  2 +-
- 4 files changed, 39 insertions(+), 8 deletions(-)
+ .gitignore        |  4 +++-
+ headers.js        | 38 +++++++++++++++++++++++++++++++++-----
+ public/index.html |  3 ++-
+ 3 files changed, 38 insertions(+), 7 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
 index a6c5c191..bcc70de3 100644
@@ -127,17 +126,6 @@ index a9e4cf56..3218dde7 100644
    </head>
    <body>
      <noscript>You need to enable JavaScript to run this app.</noscript>
-diff --git a/scripts/sha256sums.sh b/scripts/sha256sums.sh
-index 9e4bf9b9..e6bfe6bb 100755
---- a/scripts/sha256sums.sh
-+++ b/scripts/sha256sums.sh
-@@ -2,5 +2,5 @@
- 
- rm -f ./build/SHA256SUMS
- TEMP=$(mktemp)
--find ./build -type f | xargs shasum -a 256 | sed -r 's/^([0-9a-f]{64}\s+)\.\/build\//\1/' | LC_ALL=C sort -k 2 | tee "$TEMP"
-+find -L ./build -type f | xargs shasum -a 256 | sed -r 's/^([0-9a-f]{64}\s+)\.\/build\//\1/' | LC_ALL=C sort -k 2 | tee "$TEMP"
- mv "$TEMP" ./build/SHA256SUMS
 -- 
 2.32.0
 
