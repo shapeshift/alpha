@@ -5,7 +5,9 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "./scripts/build.sh",
+    "build:prep": "./scripts/prep.sh",
+    "build": "yarn build:prep && ./scripts/build.sh",
+    "update-patch": "./scripts/update-patch.sh",
     "lint": "eslint -c .eslintrc src --ext .ts",
     "lint:fix": "yarn lint --fix",
     "test": "jest"
