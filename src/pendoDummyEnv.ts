@@ -47,19 +47,29 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
   const pendoDataLog: Array<{ url: URL; data: object }> = []
   function fetchAndLog(url: string, init?: RequestInit): Promise<Response> {
     const urlObj = new URL(url)
-    if (urlObj.searchParams.has('jzb')) {
-      const jzbObj = state.compressMap.get(urlObj.searchParams.get('jzb')!)
-      console.info('PendoDummyEnv: pendo sent jzb data', jzbObj)
-      pendoDataLog.push({ url: urlObj, data: jzbObj })
-    }
-    if (init?.body) {
-      if (typeof init.body !== 'string') {
-        throw new Error(`PendoDummyEnv: pendo sent non-string post data (${init.body})`)
+    const dataObj = (() => {
+      if (urlObj.searchParams.has('jzb')) {
+        if (init?.body) {
+          throw new Error(`PendoDummyEnv: pendo tried to send both jzb and post data at once`)
+        }
+        const jzbObj = state.compressMap.get(urlObj.searchParams.get('jzb')!)
+        console.info('PendoDummyEnv: pendo sent jzb data', jzbObj)
+        return jzbObj
       }
-      const postObj = JSON.parse(init.body)
-      pendoDataLog.push({ url: urlObj, data: postObj })
-      console.info('PendoDummyEnv: pendo sent post data', postObj)
+      if (init?.body) {
+        if (typeof init.body !== 'string') {
+          throw new Error(`PendoDummyEnv: pendo sent non-string post data (${init.body})`)
+        }
+        const postObj = JSON.parse(init.body)
+        console.info('PendoDummyEnv: pendo sent post data', postObj)
+        return postObj
+      }
+    })()
+    if (dataObj?.error) {
+      console.error(`PendoDummyEnv: supressed error report from pendo agent`, dataObj.error)
+      return Promise.resolve(new Response(null, { status: 200 }))
     }
+    pendoDataLog.push({ url: urlObj, data: dataObj })
     return filteredFetch(url, init)
   }
 
@@ -163,7 +173,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       return (obj: object) => {
         const out = state.compress!(obj)
         state.compressMap.set(out, obj)
-        setImmediate(() => state.compressMap.delete(out))
+        setTimeout(() => state.compressMap.delete(out), 0)
         return out
       }
     },
@@ -284,9 +294,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
             'setTimeout',
             'clearTimeout',
             'setInterval',
-            'clearInterval',
-            'setImmediate',
-            'clearImmediate'
+            'clearInterval'
           ].includes(p)
           ? out.bind(target)
           : out
