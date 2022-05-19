@@ -149,7 +149,10 @@ export async function filterResponse(
         'normalizedUrl',
         'preventCodeInjection',
         'segmentFlags',
-        'throttling'
+        'throttling',
+        'props',
+        'type',
+        'children'
       ].includes(x)
   )
   if (unexpectedKeys.length > 0) {
