@@ -39,7 +39,28 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     _keys: undefined as ((...args: any) => (string | symbol)[]) | undefined,
     _keysResults: new WeakMap(),
     lastAttributes: undefined as Record<string, string> | undefined,
-    dom: undefined as ((...args: any) => unknown) | undefined
+    dom: undefined as ((...args: any) => unknown) | undefined,
+    compress: undefined as ((obj: object) => string) | undefined,
+    compressMap: new Map()
+  }
+
+  const pendoDataLog: Array<{ url: URL; data: object }> = []
+  function fetchAndLog(url: string, init?: RequestInit): Promise<Response> {
+    const urlObj = new URL(url)
+    if (urlObj.searchParams.has('jzb')) {
+      const jzbObj = state.compressMap.get(urlObj.searchParams.get('jzb')!)
+      console.info('PendoDummyEnv: pendo sent jzb data', jzbObj)
+      pendoDataLog.push({ url: urlObj, data: jzbObj })
+    }
+    if (init?.body) {
+      if (typeof init.body !== 'string') {
+        throw new Error(`PendoDummyEnv: pendo sent non-string post data (${init.body})`)
+      }
+      const postObj = JSON.parse(init.body)
+      pendoDataLog.push({ url: urlObj, data: postObj })
+      console.info('PendoDummyEnv: pendo sent post data', postObj)
+    }
+    return filteredFetch(url, init)
   }
 
   const underscoreMixins = {
@@ -137,6 +158,17 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     },
     set dom(value) {
       state.dom = value
+    },
+    get compress() {
+      return (obj: object) => {
+        const out = state.compress!(obj)
+        state.compressMap.set(out, obj)
+        setImmediate(() => state.compressMap.delete(out))
+        return out
+      }
+    },
+    set compress(value) {
+      state.compress = value
     }
   }
 
@@ -161,7 +193,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       }
       send(data?: BodyInit) {
         const url = this._url
-        filteredFetch(url, {
+        fetchAndLog(url, {
           method: this._method,
           headers: this._headers,
           credentials: this.withCredentials ? 'include' : 'same-origin',
@@ -186,7 +218,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       onload: (() => void) | undefined
       onerror: (() => void) | undefined
       set src(value: string) {
-        filteredFetch(value, { mode: 'no-cors' }).then(
+        fetchAndLog(value, { mode: 'no-cors' }).then(
           () => this.onload?.(),
           () => this.onerror?.()
         )
@@ -230,6 +262,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       }
     }),
     pendo,
+    pendoDataLog,
     window: new Proxy(window, {
       get(target, p) {
         if (typeof p === 'string' && ['fetch', 'XMLHttpRequest'].includes(p)) return undefined
