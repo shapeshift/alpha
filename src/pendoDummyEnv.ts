@@ -29,6 +29,8 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
 }
 
 export function makePendoDummyEnv(filteredFetch: typeof fetch) {
+  const ctEpsilon = 5 * 1000
+
   const state = {
     sawFirstCreateElementScript: false,
     sawFirstWindowLocation: false,
@@ -41,35 +43,85 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     lastAttributes: undefined as Record<string, string> | undefined,
     dom: undefined as ((...args: any) => unknown) | undefined,
     compress: undefined as ((obj: object) => string) | undefined,
-    compressMap: new Map()
+    compressMap: new Map(),
+    apiKey: undefined as string | undefined,
+    VERSION: undefined as string | undefined
   }
 
-  const pendoDataLog: Array<{ url: URL; data: object }> = []
+  const transmissionLog: Array<{ url: URL; data: object }> = []
+
   function fetchAndLog(url: string, init?: RequestInit): Promise<Response> {
     const urlObj = new URL(url)
     const dataObj = (() => {
       if (urlObj.searchParams.has('jzb')) {
         if (init?.body) {
-          throw new Error(`PendoDummyEnv: pendo tried to send both jzb and post data at once`)
+          throw new Error(`PendoDummyEnv: agent tried to send both jzb and post data at once`)
         }
         const jzbObj = state.compressMap.get(urlObj.searchParams.get('jzb')!)
-        console.info('PendoDummyEnv: pendo sent jzb data', jzbObj)
+        if (!jzbObj) {
+          throw new Error(
+            `PendoDummyEnv: agent tried to send jzb data missing from the compressMap`
+          )
+        }
+        console.info('PendoDummyEnv: agent sent jzb data', jzbObj)
         return jzbObj
       }
       if (init?.body) {
         if (typeof init.body !== 'string') {
-          throw new Error(`PendoDummyEnv: pendo sent non-string post data (${init.body})`)
+          throw new Error(`PendoDummyEnv: agent sent non-string post data (${init.body})`)
         }
         const postObj = JSON.parse(init.body)
-        console.info('PendoDummyEnv: pendo sent post data', postObj)
+        console.info('PendoDummyEnv: agent sent post data', postObj)
         return postObj
       }
     })()
+    // Don't report agent errors because we probably caused them ourselves.
     if (dataObj?.error) {
-      console.error(`PendoDummyEnv: supressed error report from pendo agent`, dataObj.error)
+      console.error(`PendoDummyEnv: suppressed error report from agent`, dataObj.error)
       return Promise.resolve(new Response(null, { status: 200 }))
     }
-    pendoDataLog.push({ url: urlObj, data: dataObj })
+    const [, endpoint, apiKey] = /^\/data\/([^/]*)\/(.*)$/.exec(urlObj.pathname) ?? []
+    if (apiKey !== state.apiKey) {
+      throw new Error(`PendoDummyEnv: expected api key in url to match config (${apiKey})`)
+    }
+    // Verify no unexpected data in the URL parameters
+    for (const [k, v] of urlObj.searchParams.entries()) {
+      switch (k) {
+        case 'jzb':
+          break
+        case 'v':
+          if (v !== state.VERSION) {
+            throw new Error(
+              `PendoDummyEnv: attempted fetch with url parameter 'v' which does not match agent version`
+            )
+          }
+          break
+        case 'ct': {
+          const ct = Number.parseInt(v)
+          if (
+            !Number.isSafeInteger(ct) ||
+            ct.toString() !== v ||
+            Math.abs(ct - Date.now()) > ctEpsilon
+          ) {
+            throw new Error(
+              `PendoDummyEnv: attempted fetch with url parameter 'ct' out of expected range: ${v}`
+            )
+          }
+          console.debug(`PendoDummyEnv: ct diff`, Math.abs(ct - Date.now()))
+          break
+        }
+        default:
+          throw new Error(
+            `PendoDummyEnv: attempted fetch with unexpected url parameter '${k}' = '${v}'`
+          )
+      }
+    }
+    transmissionLog.push(
+      ...(Array.isArray(dataObj) ? dataObj : [dataObj]).map((x) => ({
+        endpoint,
+        ...x
+      }))
+    )
     return filteredFetch(url, init)
   }
 
@@ -179,6 +231,24 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     },
     set compress(value) {
       state.compress = value
+    },
+    get VERSION() {
+      return state.VERSION
+    },
+    set VERSION(value) {
+      if (state.VERSION && state.VERSION !== value) {
+        throw new Error(`PendoDummyEnv: only expected VERSION to be set once`)
+      }
+      state.VERSION = value
+    },
+    get apiKey() {
+      return state.apiKey
+    },
+    set apiKey(value) {
+      if (state.apiKey && state.apiKey !== value) {
+        throw new Error(`PendoDummyEnv: only expected apiKey to be set once`)
+      }
+      state.apiKey = value
     }
   }
 
@@ -272,7 +342,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       }
     }),
     pendo,
-    pendoDataLog,
+    transmissionLog,
     window: new Proxy(window, {
       get(target, p) {
         if (typeof p === 'string' && ['fetch', 'XMLHttpRequest'].includes(p)) return undefined
