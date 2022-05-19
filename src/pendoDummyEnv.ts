@@ -29,7 +29,7 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
 }
 
 export function makePendoDummyEnv(filteredFetch: typeof fetch) {
-  const ctEpsilon = 5 * 1000
+  const ctEpsilon = 128
 
   const state = {
     sawFirstCreateElementScript: false,
