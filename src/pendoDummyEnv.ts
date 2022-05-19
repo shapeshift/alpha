@@ -242,8 +242,9 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
           state.sawFirstWindowLocation = true
           return { host: '' }
         }
-        const out = Reflect.get(target, p, target)
-        return typeof out === 'function' ? out.bind(target) : out
+        return Reflect.get(target, p, target)
+        // const out = Reflect.get(target, p, target)
+        // return typeof out === 'function' ? out.bind(target) : out
       }
     })
   }
