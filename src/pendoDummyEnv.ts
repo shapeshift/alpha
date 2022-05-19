@@ -217,13 +217,15 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
             return target.createElement(tagName)
           }
         }
-        return Reflect.get(target, p, target)
+        const out = Reflect.get(target, p, target)
+        return typeof out === 'function' ? out.bind(target) : out
       }
     }),
     navigator: new Proxy(navigator, {
       get(target, p) {
         if (typeof p === 'string' && ['sendBeacon'].includes(p)) return undefined
-        return Reflect.get(target, p, target)
+        const out = Reflect.get(target, p, target)
+        return typeof out === 'function' ? out.bind(target) : out
       }
     }),
     pendo,
@@ -231,7 +233,8 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       get(target, p) {
         if (typeof p === 'string' && ['fetch', 'XMLHttpRequest'].includes(p)) return undefined
         if (p === 'pendo') return pendo
-        return Reflect.get(target, p, target)
+        const out = Reflect.get(target, p, target)
+        return typeof out === 'function' ? out.bind(target) : out
       }
     })
   }
