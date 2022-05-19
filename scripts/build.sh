@@ -2,6 +2,7 @@
 
 # Build microbundle
 yarn microbundle
+yarn prettier -w ./dist/alpha.modern.js
 cp ./dist/alpha.modern.* ./web/public/
 
 # Build web

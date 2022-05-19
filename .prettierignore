@@ -1,5 +1,6 @@
 coverage
-dist
+dist/**
+!/dist/alpha.modern.js
 node_modules
 scripts
 web
