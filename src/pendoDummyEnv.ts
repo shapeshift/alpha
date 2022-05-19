@@ -31,6 +31,7 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
 export function makePendoDummyEnv(filteredFetch: typeof fetch) {
   const state = {
     sawFirstCreateElementScript: false,
+    sawFirstWindowLocation: false,
     _: undefined as UnderscoreLike | undefined,
     _each: undefined as ((...args: any) => unknown) | undefined,
     _eachRecursionLevel: 0,
@@ -233,6 +234,14 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       get(target, p) {
         if (typeof p === 'string' && ['fetch', 'XMLHttpRequest'].includes(p)) return undefined
         if (p === 'pendo') return pendo
+        // The first window.location call is used to determine if this is a staging
+        // server. We force this check to fail because it will otherwise try to load
+        // a staging version of the agent, which will fail because we don't let
+        // the agent inject script tags.
+        if (p === 'location' && !state.sawFirstWindowLocation) {
+          state.sawFirstWindowLocation = true
+          return { host: '' }
+        }
         const out = Reflect.get(target, p, target)
         return typeof out === 'function' ? out.bind(target) : out
       }
