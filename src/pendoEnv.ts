@@ -79,7 +79,7 @@ function isTransmissionAllowed(
     (x) => new URL(x).host
   )
 
-  if (url.protocol !== 'https') {
+  if (url.protocol !== 'https:') {
     throw makeError(`fetch to non-https url not allowed`)
   }
   // This is all a bit overly restrictive, but it should ensure we fail fast if
