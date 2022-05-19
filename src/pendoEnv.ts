@@ -173,7 +173,7 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
       state._reduce = value.reduce
       value.mixin(underscoreMixins)
     },
-    // pendo.dom() is called with the tag name immediately after the _.each(_.keys())
+    // pendo.dom() is called with the tag name immediately after the _.reduce(_.keys())
     // pattern we're using to capture guide tag attributes.
     get dom() {
       return function (...args: any) {
