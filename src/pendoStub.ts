@@ -114,7 +114,7 @@ export function loadPendoAgent(
         credentials: 'omit'
       })
     ).text()
-    const modifiedAgentSrc = `(function(){\nwith(pendoDummyEnv){\n${agentSrc}\n})()\n`
+    const modifiedAgentSrc = `(function(){\nwith(pendoDummyEnv){\n${agentSrc}\n}\n})()\n`
     const modifiedAgentBuf = new TextEncoder().encode(modifiedAgentSrc)
     const modifiedAgentUrl = URL.createObjectURL(
       new Blob([modifiedAgentBuf], { type: 'text/javascript' })
