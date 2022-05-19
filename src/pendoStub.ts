@@ -1,4 +1,4 @@
-import { makePendoDummyEnv } from './pendoDummyEnv'
+import { makePendoEnv } from './pendoEnv'
 import { PendoInitializeParams, Window } from './types'
 
 declare const window: Window & typeof globalThis
@@ -101,9 +101,9 @@ export function loadPendoAgent(
   pendoInitializeParams: PendoInitializeParams
 ) {
   window.pendo_options = pendoOptions
-  const pendoDummyEnv = makePendoDummyEnv(fetch)
-  ;(window as unknown as { pendoDummyEnv: unknown }).pendoDummyEnv = pendoDummyEnv
-  window.pendo = pendoDummyEnv.pendo
+  const pendoEnv = makePendoEnv(fetch)
+  ;(window as unknown as { pendoEnv: unknown }).pendoEnv = pendoEnv
+  window.pendo = pendoEnv.pendo
   // installPendoStub()
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   window.pendo!.initialize(pendoInitializeParams)
@@ -114,7 +114,7 @@ export function loadPendoAgent(
         credentials: 'omit'
       })
     ).text()
-    const modifiedAgentSrc = `(function(){\nwith(pendoDummyEnv){\n${agentSrc}\n}\n})()\n`
+    const modifiedAgentSrc = `(function(e){\nwith(e){\n${agentSrc}\n}\n})(window.pendoEnv)\n`
     const modifiedAgentBuf = new TextEncoder().encode(modifiedAgentSrc)
     const modifiedAgentUrl = URL.createObjectURL(
       new Blob([modifiedAgentBuf], { type: 'text/javascript' })

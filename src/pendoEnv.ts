@@ -8,6 +8,11 @@ type UnderscoreLike = {
   mixin: (methods: Record<string, (...args: any) => unknown>) => void
 }
 
+function makeError(msg: string): Error {
+  console.error(msg)
+  return new Error(msg)
+}
+
 function filterGuideTag(tagName: string, attributes: Record<string, string>) {
   tagName = tagName.toLowerCase().trim()
   attributes = Object.fromEntries(
@@ -17,10 +22,10 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
     case 'embed':
     case 'iframe':
     case 'script':
-      throw new Error(`PendoDummyEnv: guides may not contain '${tagName}'`)
+      throw makeError(`PendoDummyEnv: guides may not contain '${tagName}'`)
     case 'a':
       if (attributes.href && /^\s*javascript:/i.test(attributes.href)) {
-        throw new Error(`PendoDummyEnv: guides may not contain 'javascript:' links`)
+        throw makeError(`PendoDummyEnv: guides may not contain 'javascript:' links`)
       }
       break
     default:
@@ -28,7 +33,7 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
   }
 }
 
-export function makePendoDummyEnv(filteredFetch: typeof fetch) {
+export function makePendoEnv(filteredFetch: typeof fetch) {
   const ctEpsilon = 128
 
   const state = {
@@ -55,11 +60,11 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     const dataObj = (() => {
       if (urlObj.searchParams.has('jzb')) {
         if (init?.body) {
-          throw new Error(`PendoDummyEnv: agent tried to send both jzb and post data at once`)
+          throw makeError(`PendoDummyEnv: agent tried to send both jzb and post data at once`)
         }
         const jzbObj = state.compressMap.get(urlObj.searchParams.get('jzb')!)
         if (!jzbObj) {
-          throw new Error(
+          throw makeError(
             `PendoDummyEnv: agent tried to send jzb data missing from the compressMap`
           )
         }
@@ -68,7 +73,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       }
       if (init?.body) {
         if (typeof init.body !== 'string') {
-          throw new Error(`PendoDummyEnv: agent sent non-string post data (${init.body})`)
+          throw makeError(`PendoDummyEnv: agent sent non-string post data (${init.body})`)
         }
         const postObj = JSON.parse(init.body)
         console.info('PendoDummyEnv: agent sent post data', postObj)
@@ -80,48 +85,62 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
       console.error(`PendoDummyEnv: suppressed error report from agent`, dataObj.error)
       return Promise.resolve(new Response(null, { status: 200 }))
     }
-    const [, endpoint, apiKey] = /^\/data\/([^/]*)\/(.*)$/.exec(urlObj.pathname) ?? []
-    if (apiKey !== state.apiKey) {
-      throw new Error(`PendoDummyEnv: expected api key in url to match config (${apiKey})`)
-    }
-    // Verify no unexpected data in the URL parameters
-    for (const [k, v] of urlObj.searchParams.entries()) {
-      switch (k) {
-        case 'jzb':
-          break
-        case 'v':
-          if (v !== state.VERSION) {
-            throw new Error(
-              `PendoDummyEnv: attempted fetch with url parameter 'v' which does not match agent version`
-            )
-          }
-          break
-        case 'ct': {
-          const ct = Number.parseInt(v)
-          if (
-            !Number.isSafeInteger(ct) ||
-            ct.toString() !== v ||
-            Math.abs(ct - Date.now()) > ctEpsilon
-          ) {
-            throw new Error(
-              `PendoDummyEnv: attempted fetch with url parameter 'ct' out of expected range: ${v}`
-            )
-          }
-          console.debug(`PendoDummyEnv: ct diff`, Math.abs(ct - Date.now()))
-          break
-        }
-        default:
-          throw new Error(
-            `PendoDummyEnv: attempted fetch with unexpected url parameter '${k}' = '${v}'`
-          )
+    if (urlObj.host === 'data.pendo.io') {
+      const [, endpoint, apiKey] = /^\/data\/([^/]*)\/(.*)$/.exec(urlObj.pathname) ?? []
+      if (apiKey !== state.apiKey) {
+        throw makeError(`PendoDummyEnv: expected api key in url to match config (${apiKey})`)
       }
+      // Verify no unexpected data in the URL parameters
+      for (const [k, v] of urlObj.searchParams.entries()) {
+        switch (k) {
+          case 'jzb':
+            break
+          case 'v':
+            if (v !== state.VERSION) {
+              throw makeError(
+                `PendoDummyEnv: attempted fetch with url parameter 'v' which does not match agent version`
+              )
+            }
+            break
+          case 'ct': {
+            const ct = Number.parseInt(v)
+            if (
+              !Number.isSafeInteger(ct) ||
+              ct.toString() !== v ||
+              Math.abs(ct - Date.now()) > ctEpsilon
+            ) {
+              throw makeError(
+                `PendoDummyEnv: attempted fetch with url parameter 'ct' out of expected range: ${v}`
+              )
+            }
+            console.debug(`PendoDummyEnv: ct diff`, Math.abs(ct - Date.now()))
+            break
+          }
+          default:
+            throw makeError(
+              `PendoDummyEnv: attempted fetch with unexpected url parameter '${k}' = '${v}'`
+            )
+        }
+      }
+      transmissionLog.push(
+        ...(Array.isArray(dataObj) ? dataObj : [dataObj]).map((x) => ({
+          endpoint,
+          ...x
+        }))
+      )
+    } else if (urlObj.host === 'pendo-static-6047664892149760.storage.googleapis.com') {
+      if (/^\/guide-content\//.test(urlObj.pathname)) {
+        // allow
+      } else {
+        throw makeError(
+          `PendoDummyEnv: agent tried to fetch an unrecognized url (${urlObj.toString()})`
+        )
+      }
+    } else {
+      throw makeError(
+        `PendoDummyEnv: agent tried to fetch an unrecognized url (${urlObj.toString()})`
+      )
     }
-    transmissionLog.push(
-      ...(Array.isArray(dataObj) ? dataObj : [dataObj]).map((x) => ({
-        endpoint,
-        ...x
-      }))
-    )
     return filteredFetch(url, init)
   }
 
@@ -132,7 +151,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     // recursion will prevent the string escaping function from being bypassed.
     each(...args: any) {
       if (state._eachRecursionLevel >= 150) {
-        throw new Error(`PendoDummyEnv: _.each() recursion too deep`)
+        throw makeError(`PendoDummyEnv: _.each() recursion too deep`)
       }
       state._eachRecursionLevel++
       const out = state._each!(...args)
@@ -170,7 +189,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     },
     template(...args: unknown[]) {
       console.warn(`'PendoDummyEnv: tried to use pendo._.template()`, ...args)
-      throw new Error('PendoDummyEnv: pendo._.template() is forbidden')
+      throw makeError('PendoDummyEnv: pendo._.template() is forbidden')
     }
   }
 
@@ -208,7 +227,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
           state.lastAttributes = undefined
           const execResult = /^<(.*)><\/\1>$/.exec(args[0] as string)
           if (!execResult) {
-            throw new Error(
+            throw makeError(
               `PendoDummyEnv: unable to extract tag name from pendo.dom() call. (This should not be possible.)`
             )
           }
@@ -237,7 +256,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     },
     set VERSION(value) {
       if (state.VERSION && state.VERSION !== value) {
-        throw new Error(`PendoDummyEnv: only expected VERSION to be set once`)
+        throw makeError(`PendoDummyEnv: only expected VERSION to be set once`)
       }
       state.VERSION = value
     },
@@ -246,7 +265,7 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
     },
     set apiKey(value) {
       if (state.apiKey && state.apiKey !== value) {
-        throw new Error(`PendoDummyEnv: only expected apiKey to be set once`)
+        throw makeError(`PendoDummyEnv: only expected apiKey to be set once`)
       }
       state.apiKey = value
     }
@@ -318,14 +337,14 @@ export function makePendoDummyEnv(filteredFetch: typeof fetch) {
             if (tagName === 'script' && !state.sawFirstCreateElementScript) {
               state.sawFirstCreateElementScript = true
               if (!('integrity' in document.createElement('script')))
-                throw new Error(`PendoDummyEnv: expected SRI support`)
+                throw makeError(`PendoDummyEnv: expected SRI support`)
               return { integrity: true }
             }
             // The Pendo agent should not be creating script tags or iframes. Any attempt to do so is a misconfiguration
             // or an attack. (It's possible we could relax the iframe criterion in the future by applying the sandbox
             // attribute automatically.)
             if (['script', 'iframe'].includes(tagName)) {
-              throw new Error(`PendoDummyEnv: document.createElement('${tagName}') denied`)
+              throw makeError(`PendoDummyEnv: document.createElement('${tagName}') denied`)
             }
             return target.createElement(tagName)
           }
