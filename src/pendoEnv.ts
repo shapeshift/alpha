@@ -9,6 +9,7 @@ type UnderscoreLike = {
 }
 
 function makeError(msg: string): Error {
+  msg = `PendoEnv: ${msg}`
   console.error(msg)
   return new Error(msg)
 }
@@ -22,10 +23,10 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
     case 'embed':
     case 'iframe':
     case 'script':
-      throw makeError(`PendoDummyEnv: guides may not contain '${tagName}'`)
+      throw makeError(`guides may not contain '${tagName}'`)
     case 'a':
       if (attributes.href && /^\s*javascript:/i.test(attributes.href)) {
-        throw makeError(`PendoDummyEnv: guides may not contain 'javascript:' links`)
+        throw makeError(`guides may not contain 'javascript:' links`)
       }
       break
     default:
@@ -33,9 +34,182 @@ function filterGuideTag(tagName: string, attributes: Record<string, string>) {
   }
 }
 
-export function makePendoEnv(filteredFetch: typeof fetch) {
-  const ctEpsilon = 128
+function getTransmissionData(
+  url: URL,
+  body: BodyInit | undefined,
+  compressMap: Map<string, string>
+) {
+  if (url.searchParams.has('jzb')) {
+    if (body) {
+      throw makeError(`agent tried to send both jzb and post data at once`)
+    }
+    const jzbObj = compressMap.get(url.searchParams.get('jzb')!)
+    if (!jzbObj) {
+      throw makeError(`agent tried to send jzb data missing from the compressMap`)
+    }
+    console.info('PendoEnv: agent sent jzb data', jzbObj)
+    return jzbObj
+  }
+  if (body) {
+    if (typeof body !== 'string') {
+      throw makeError(`agent sent non-string post data (${body})`)
+    }
+    const postObj = JSON.parse(body)
+    console.info('PendoEnv: agent sent post data', postObj)
+    return postObj
+  }
+}
 
+function isTransmissionAllowed(
+  url: URL,
+  data: object | undefined,
+  integrity: string | undefined,
+  params: {
+    apiKey: string
+    VERSION: string
+    transmissionLog: Array<{ endpoint: string } & Record<string, unknown>>
+    pendoOptions: Record<string, unknown>
+  }
+) {
+  // This is excessively paranoid, but it limits the data leakage possible to a 1-byte
+  // range of values. (Actual values are 0-1.)
+  const ctEpsilon = 128
+  const dataHost = params.pendoOptions.dataHost
+  const guideHosts = ((params.pendoOptions.allowedOriginServers as string[]) ?? []).map(
+    (x) => new URL(x).host
+  )
+
+  if (url.protocol !== 'https') {
+    throw makeError(`fetch to non-https url not allowed`)
+  }
+  // This is all a bit overly restrictive, but it should ensure we fail fast if
+  // any of the assumptions made are incorrect.
+  if (dataHost && url.host === dataHost) {
+    const [match, endpoint, apiKey] = /^\/data\/([^/]*)\/(.*)$/.exec(url.pathname) ?? []
+    if (!match) throw makeError(`fetch from data.pendo.io does not match expected regex`)
+    if (apiKey !== params.apiKey) {
+      throw makeError(`expected api key in url to match config (${apiKey})`)
+    }
+    // Verify no unexpected data in the URL parameters
+    for (const [k, v] of url.searchParams.entries()) {
+      switch (k) {
+        case 'jzb':
+          break
+        case 'v':
+          if (v !== params.VERSION) {
+            throw makeError(
+              `PendoEnv: attempted fetch with url parameter 'v' which does not match agent version`
+            )
+          }
+          break
+        case 'ct': {
+          const ct = Number.parseInt(v)
+          if (
+            !Number.isSafeInteger(ct) ||
+            ct.toString() !== v ||
+            Math.abs(ct - Date.now()) > ctEpsilon
+          ) {
+            throw makeError(
+              `PendoEnv: attempted fetch with url parameter 'ct' out of expected range: ${v}`
+            )
+          }
+          console.debug(`PendoEnv: ct diff`, Math.abs(ct - Date.now()))
+          break
+        }
+        default:
+          throw makeError(`attempted fetch with unexpected url parameter '${k}' = '${v}'`)
+      }
+    }
+    // Log the transmission
+    params.transmissionLog.push(
+      ...(Array.isArray(data) ? data : [data]).map((x) => ({
+        endpoint,
+        ...x
+      }))
+    )
+  } else if (guideHosts.includes(url.host)) {
+    if (!/^\/guide-content\/.*\.dom\.json$/.test(url.pathname)) {
+      throw makeError(
+        `fetch from pendo-static-6047664892149760.storage.googleapis.com does not match expected regex`
+      )
+    }
+    // Verify no unexpected data in the URL parameters
+    let sawIntegrity = false
+    for (const [k, v] of url.searchParams.entries()) {
+      switch (k) {
+        case 'sha256': {
+          if (`sha256-${v}` !== integrity) {
+            throw makeError(`expected integrity url parameter to match request's integrity value`)
+          }
+          sawIntegrity = true
+          break
+        }
+        default:
+          throw makeError(`attempted fetch with unexpected url parameter '${k}' = '${v}'`)
+      }
+    }
+    if (!sawIntegrity) {
+      throw makeError(`expected integrity url parameter on request`)
+    }
+  } else {
+    throw makeError(`agent tried to fetch an unrecognized url (${url})`)
+  }
+}
+
+async function filterResponse(
+  url: URL,
+  data: object | undefined,
+  response: Response
+): Promise<Response> {
+  if (response.status < 200 || response.status >= 300) return Response.error()
+  if (!response.body) return new Response(null, { status: 200 })
+  const resObj = await response.json()
+  if (Array.isArray(resObj)) {
+    makeError(`fetch response is an array, not an object: ${JSON.stringify(resObj, undefined, 2)}`)
+    return Response.error()
+  }
+  const unexpectedKeys = Object.keys(resObj).filter(
+    (x) =>
+      ![
+        'autoOrdering',
+        'designerEnabled',
+        'features',
+        'globalJsUrl',
+        'guideCssUrl',
+        'guideWidget',
+        'guides',
+        'lastGuideStepSeen',
+        'normalizedUrl',
+        'preventCodeInjection',
+        'segmentFlags',
+        'throttling'
+      ].includes(x)
+  )
+  if (unexpectedKeys.length > 0) {
+    makeError(`fetch response has unexpected keys: ${JSON.stringify(unexpectedKeys, undefined, 2)}`)
+    return Response.error()
+  }
+  // Override preventCodeInjection to true in case the server feels like trying
+  // to unset it
+  if ('guides' in resObj || 'preventCodeInjection' in resObj) {
+    if (resObj.preventCodeInjection !== true) {
+      console.warn(
+        `PendoEnv: Expected preventCodeInjection to be set on a guide, but it wasn't. It's been set anyway.`
+      )
+    }
+    resObj.preventCodeInjection = true
+  }
+  // The agent doesn't use headers or statusText, so we can ignore them
+  return new Response(JSON.stringify(resObj), {
+    status: response.status
+  })
+}
+
+export function makePendoEnv(pendoOptions: Record<string, unknown>) {
+  // While the state object has a variety of values that start out as undefined,
+  // they are usually set during parsing of the agent script and guaranteed to
+  // be defined by the point they are needed. We represent this by using the
+  // correct types here, but also using non-null assertions liberally.
   const state = {
     sawFirstCreateElementScript: false,
     sawFirstWindowLocation: false,
@@ -53,95 +227,31 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
     VERSION: undefined as string | undefined
   }
 
-  const transmissionLog: Array<{ url: URL; data: object }> = []
+  const transmissionLog: Array<{ endpoint: string } & Record<string, unknown>> = []
 
   function fetchAndLog(url: string, init?: RequestInit): Promise<Response> {
     const urlObj = new URL(url)
-    const dataObj = (() => {
-      if (urlObj.searchParams.has('jzb')) {
-        if (init?.body) {
-          throw makeError(`PendoDummyEnv: agent tried to send both jzb and post data at once`)
-        }
-        const jzbObj = state.compressMap.get(urlObj.searchParams.get('jzb')!)
-        if (!jzbObj) {
-          throw makeError(
-            `PendoDummyEnv: agent tried to send jzb data missing from the compressMap`
-          )
-        }
-        console.info('PendoDummyEnv: agent sent jzb data', jzbObj)
-        return jzbObj
-      }
-      if (init?.body) {
-        if (typeof init.body !== 'string') {
-          throw makeError(`PendoDummyEnv: agent sent non-string post data (${init.body})`)
-        }
-        const postObj = JSON.parse(init.body)
-        console.info('PendoDummyEnv: agent sent post data', postObj)
-        return postObj
-      }
-    })()
+    const dataObj = getTransmissionData(urlObj, init?.body ?? undefined, state.compressMap)
+
     // Don't report agent errors because we probably caused them ourselves.
     if (dataObj?.error) {
-      console.error(`PendoDummyEnv: suppressed error report from agent`, dataObj.error)
+      console.error(`PendoEnv: suppressed error report from agent`, dataObj.error)
       return Promise.resolve(new Response(null, { status: 200 }))
     }
-    if (urlObj.host === 'data.pendo.io') {
-      const [, endpoint, apiKey] = /^\/data\/([^/]*)\/(.*)$/.exec(urlObj.pathname) ?? []
-      if (apiKey !== state.apiKey) {
-        throw makeError(`PendoDummyEnv: expected api key in url to match config (${apiKey})`)
-      }
-      // Verify no unexpected data in the URL parameters
-      for (const [k, v] of urlObj.searchParams.entries()) {
-        switch (k) {
-          case 'jzb':
-            break
-          case 'v':
-            if (v !== state.VERSION) {
-              throw makeError(
-                `PendoDummyEnv: attempted fetch with url parameter 'v' which does not match agent version`
-              )
-            }
-            break
-          case 'ct': {
-            const ct = Number.parseInt(v)
-            if (
-              !Number.isSafeInteger(ct) ||
-              ct.toString() !== v ||
-              Math.abs(ct - Date.now()) > ctEpsilon
-            ) {
-              throw makeError(
-                `PendoDummyEnv: attempted fetch with url parameter 'ct' out of expected range: ${v}`
-              )
-            }
-            console.debug(`PendoDummyEnv: ct diff`, Math.abs(ct - Date.now()))
-            break
-          }
-          default:
-            throw makeError(
-              `PendoDummyEnv: attempted fetch with unexpected url parameter '${k}' = '${v}'`
-            )
-        }
-      }
-      transmissionLog.push(
-        ...(Array.isArray(dataObj) ? dataObj : [dataObj]).map((x) => ({
-          endpoint,
-          ...x
-        }))
-      )
-    } else if (urlObj.host === 'pendo-static-6047664892149760.storage.googleapis.com') {
-      if (/^\/guide-content\//.test(urlObj.pathname)) {
-        // allow
-      } else {
-        throw makeError(
-          `PendoDummyEnv: agent tried to fetch an unrecognized url (${urlObj.toString()})`
-        )
-      }
-    } else {
-      throw makeError(
-        `PendoDummyEnv: agent tried to fetch an unrecognized url (${urlObj.toString()})`
-      )
-    }
-    return filteredFetch(url, init)
+
+    // Throw if fetch isn't allowed.
+    isTransmissionAllowed(urlObj, dataObj, init?.integrity, {
+      apiKey: state.apiKey!,
+      VERSION: state.VERSION!,
+      transmissionLog: transmissionLog,
+      pendoOptions
+    })
+
+    return fetch(url, init)
+      .then((res) => filterResponse(urlObj, dataObj, res))
+      .catch((e) => {
+        throw makeError(`fetch error: ${e}`)
+      })
   }
 
   const underscoreMixins = {
@@ -151,15 +261,15 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
     // recursion will prevent the string escaping function from being bypassed.
     each(...args: any) {
       if (state._eachRecursionLevel >= 150) {
-        throw makeError(`PendoDummyEnv: _.each() recursion too deep`)
+        throw makeError(`_.each() recursion too deep`)
       }
       state._eachRecursionLevel++
       const out = state._each!(...args)
       state._eachRecursionLevel--
       return out
     },
-    // We need to "mark" the return values here so we can trigger a special case
-    // in reduce().
+    // We need to remember the return values here so we can trigger a special case
+    // in _.reduce(). Use of a WeakSet means we don't have to bother with cleanup.
     keys(obj: unknown) {
       const out = state._keys!(obj)
       state._keysResults.set(out, obj)
@@ -187,13 +297,16 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
         throw e
       }
     },
+    // _.template() runs arbitrary code embedded in the template in the global
+    // environment using new Function(), which could do almost anything.
     template(...args: unknown[]) {
-      console.warn(`'PendoDummyEnv: tried to use pendo._.template()`, ...args)
-      throw makeError('PendoDummyEnv: pendo._.template() is forbidden')
+      console.warn(`'PendoEnv: tried to use pendo._.template()`, ...args)
+      throw makeError('PendoEnv: pendo._.template() is forbidden')
     }
   }
 
   const pendo: any = {
+    // This is the standard agent stub usually set up by the snippet.
     _q: [],
     initialize(...args: any[]) {
       pendo._q.unshift(['initialize', ...args])
@@ -210,6 +323,8 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
     track(...args: any[]) {
       pendo._q.push(['track', ...args])
     },
+    // We need to apply mixins to the agent's underscore.js library before the agent
+    // can start using it, so we use a hook in the setter.
     get _() {
       return state._!
     },
@@ -220,6 +335,8 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
       state._reduce = value.reduce
       value.mixin(underscoreMixins)
     },
+    // pendo.dom() is called with the tag name immediately after the _.each(_.keys())
+    // pattern we're using to capture guide tag attributes.
     get dom() {
       return function (...args: any) {
         if (state.lastAttributes) {
@@ -228,7 +345,7 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
           const execResult = /^<(.*)><\/\1>$/.exec(args[0] as string)
           if (!execResult) {
             throw makeError(
-              `PendoDummyEnv: unable to extract tag name from pendo.dom() call. (This should not be possible.)`
+              `PendoEnv: unable to extract tag name from pendo.dom() call. (This should not be possible.)`
             )
           }
           const tagName = execResult[1]
@@ -240,6 +357,12 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
     set dom(value) {
       state.dom = value
     },
+    // The compress() function will sometimes be called repeatedly to try to get
+    // a payload that's below a certain length. That means not every return value
+    // will actually be sent to the server, so we can't log transmissions here.
+    // However, any fetch using compressed data as a payload will be kicked off
+    // synchronously, so we can memoize the result and clear it on the next run
+    // of the event loop.
     get compress() {
       return (obj: object) => {
         const out = state.compress!(obj)
@@ -251,12 +374,15 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
     set compress(value) {
       state.compress = value
     },
+    // We could probably get away without storing VERSION and apiKey in state,
+    // but then there's an order-of-declaration issue with them being used in
+    // fetchAndLog, and this is just easier.
     get VERSION() {
       return state.VERSION
     },
     set VERSION(value) {
       if (state.VERSION && state.VERSION !== value) {
-        throw makeError(`PendoDummyEnv: only expected VERSION to be set once`)
+        throw makeError(`only expected VERSION to be set once`)
       }
       state.VERSION = value
     },
@@ -265,7 +391,7 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
     },
     set apiKey(value) {
       if (state.apiKey && state.apiKey !== value) {
-        throw makeError(`PendoDummyEnv: only expected apiKey to be set once`)
+        throw makeError(`only expected apiKey to be set once`)
       }
       state.apiKey = value
     }
@@ -273,7 +399,7 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
 
   return {
     // Pendo will funnel most requests through here, which is named wrong for reasons.
-    // This class implements only what the Pendo agent actually uses.
+    // This class implements only the bare minimum of what the agent actually uses.
     ActiveXObject: class XMLHttpRequest {
       _headers = new Headers()
       _url = ''
@@ -304,7 +430,7 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
             this.readyState = 4
           })
           .catch((e) => {
-            console.warn(`PendoDummyEnv: fetch of ${url} failed`, e)
+            console.warn(`PendoEnv: fetch of ${url} failed`, e)
             this.status = 0
             this.responseText = String(e)
             this.readyState = 4
@@ -324,56 +450,61 @@ export function makePendoEnv(filteredFetch: typeof fetch) {
       }
     },
     document: new Proxy(document, {
-      set(target, p, value) {
-        // Swallow writes to document.cookie to fix a Pendo bug where it tries to clear cookies even when they're disabled.
-        if (p === 'cookie') return true
-        return Reflect.set(target, p, value, target)
-      },
       get(target, p) {
         if (p === 'createElement') {
           return (tagName: string) => {
             // The first document.createElement("script") call is used to sense if SRI is supported. Throw if it's not,
-            // because otherwise Pendo swallows the error.
+            // because otherwise Pendo swallows the error and disables SRI.
             if (tagName === 'script' && !state.sawFirstCreateElementScript) {
               state.sawFirstCreateElementScript = true
               if (!('integrity' in document.createElement('script')))
-                throw makeError(`PendoDummyEnv: expected SRI support`)
+                throw makeError(`expected SRI support`)
               return { integrity: true }
             }
             // The Pendo agent should not be creating script tags or iframes. Any attempt to do so is a misconfiguration
             // or an attack. (It's possible we could relax the iframe criterion in the future by applying the sandbox
             // attribute automatically.)
             if (['script', 'iframe'].includes(tagName)) {
-              throw makeError(`PendoDummyEnv: document.createElement('${tagName}') denied`)
+              throw makeError(`document.createElement('${tagName}') denied`)
             }
             return target.createElement(tagName)
           }
         }
         const out = Reflect.get(target, p, target)
+        // All function calls the agent throw 'TypeError: invalid invocation' if
+        // called with the wrong `this` value.
         return typeof out === 'function' ? out.bind(target) : out
       }
     }),
-    navigator: new Proxy(navigator, {
-      get(target, p) {
-        if (typeof p === 'string' && ['sendBeacon'].includes(p)) return undefined
-        const out = Reflect.get(target, p, target)
-        return typeof out === 'function' ? out.bind(target) : out
-      }
-    }),
+    // The only thing the agent actually uses here is navigator.userAgent. We
+    // to explicitly remove navigator.sendBeacon(), but this is simpler.
+    navigator: {
+      userAgent: navigator.userAgent
+    },
     pendo,
+    // The agent doesn't use this, but it makes the log relatively easy to find
+    // as window.pendoEnv.transmissionLog.
     transmissionLog,
     window: new Proxy(window, {
       get(target, p) {
+        // We undefine window.fetch and window.XMLHttpRequest to force the agent
+        // into using the ActiveXObject implementation above.
         if (typeof p === 'string' && ['fetch', 'XMLHttpRequest'].includes(p)) return undefined
+        // We need to return the same object for pendo and window.pendo.
         if (p === 'pendo') return pendo
         // The first window.location call is used to determine if this is a staging
-        // server. We force this check to fail because it will otherwise try to load
-        // a staging version of the agent, which will fail because we don't let
-        // the agent inject script tags.
+        // server. We force this check to fail because the agent will otherwise try
+        // to load a staging version of itself, which is identical except for a
+        // couple configuration options that don't matter. If we let it try, it
+        // will fail because we don't let the agent inject script tags.
         if (p === 'location' && !state.sawFirstWindowLocation) {
           state.sawFirstWindowLocation = true
           return { host: '' }
         }
+        // Because this is the global variable, we have to be very careful about what
+        // we bind -- constructors, for example, will make broken objects if done in
+        // this naive manner. We should only bind functions the agent uses and which
+        // throw 'TypeError: illegal invocation' if called with the wrong `this` value.
         const out = Reflect.get(target, p, target)
         return typeof out === 'function' &&
           typeof p === 'string' &&

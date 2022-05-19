@@ -101,7 +101,7 @@ export function loadPendoAgent(
   pendoInitializeParams: PendoInitializeParams
 ) {
   window.pendo_options = pendoOptions
-  const pendoEnv = makePendoEnv(fetch)
+  const pendoEnv = makePendoEnv(pendoOptions)
   ;(window as unknown as { pendoEnv: unknown }).pendoEnv = pendoEnv
   window.pendo = pendoEnv.pendo
   // installPendoStub()
