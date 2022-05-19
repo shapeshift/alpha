@@ -13,5 +13,6 @@ export default {
   },
   preset: 'ts-jest',
   resetMocks: false,
-  testEnvironment: 'jsdom'
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['./jsdomFixups.ts']
 }

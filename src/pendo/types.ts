@@ -1,3 +1,9 @@
+import type { PendoEnv } from './env'
+
+/**
+ * This is not an exhaustive list of possible initialization parameters. See
+ * the agent code and associated documentation for more details.
+ */
 export interface PendoInitializeParams {
   visitor?: {
     id?: string
@@ -14,7 +20,14 @@ export interface PendoInitializeParams {
   }
 }
 
+/**
+ * This is very similar to PendoInitializeParams, but represents the parameter
+ * of the agent's embedded IIFE.
+ */
+export type PendoConfig = Record<string, unknown> & { apiKey: string }
+
 export interface Pendo {
+  VERSION?: string
   _q: Array<unknown>
   initialize(params: PendoInitializeParams): void
   identify(): void
@@ -24,12 +37,7 @@ export interface Pendo {
 }
 
 export interface Window {
-  pendo_options?: Readonly<Record<string, unknown>>
   pendo?: Pendo
-}
-
-export class PendoAgentValidationError extends Error {
-  constructor(msg: string) {
-    super(`failed to validate pendo agent: ${msg}`)
-  }
+  pendoEnv?: PendoEnv
+  pendoFixupHelpers?: Record<string, unknown>
 }
