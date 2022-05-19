@@ -1,9 +1,7 @@
 import { loadPendoAgent } from './pendoStub'
 
-// globalThis.navigator?.serviceWorker?.register(require('./serviceWorker'))
-
 loadPendoAgent(
-  "sha256-nUoO330kQ1XlmPrDlASmM7FNAHKBncX0LZRbwnYL/V4=",
+  'sha256-nUoO330kQ1XlmPrDlASmM7FNAHKBncX0LZRbwnYL/V4=',
   {
     environmentName: 'production',
     blockAgentMetadata: false, // double-check
@@ -33,7 +31,8 @@ loadPendoAgent(
     apiKey: '67c2f326-a6c2-4aa2-4559-08a53b679e93',
     // hack to stop SameSite cookie warnings while disableCookies is set
     cookieDomain: window.location.hostname
-  }, {
+  },
+  {
     // visitor: {
     //   id: 'test_visitor'
     // },
