@@ -30,13 +30,8 @@ loadPendoAgent(
     htmlAttributes: /^(tabindex)$/i,
     apiKey: '67c2f326-a6c2-4aa2-4559-08a53b679e93',
     // hack to stop SameSite cookie warnings while disableCookies is set
-    cookieDomain: window.location.hostname
-  },
-  {
-    // visitor: {
-    //   id: 'test_visitor'
-    // },
-    sanitizeUrl: (x) => {
+    cookieDomain: window.location.hostname,
+    sanitizeUrl: (x: string) => {
       console.debug('PendoConfig:sanitizeUrl', x)
       return x
     },
@@ -53,18 +48,23 @@ loadPendoAgent(
       guidesLoaded: () => {
         console.debug('PendoConfig:guidesLoaded')
       },
-      validateGuide: async (signatureString) => {
+      validateGuide: async (signatureString: string) => {
         console.debug('PendoConfig:validateGuide', signatureString)
         return true
       },
-      validateLauncher: async (signatureString) => {
+      validateLauncher: async (signatureString: string) => {
         console.debug('PendoConfig:validateLauncher', signatureString)
         return true
       },
-      validateGlobalScript: async (data) => {
+      validateGlobalScript: async (data: unknown) => {
         console.debug('PendoConfig:validateGlobalScript', data)
         return true
       }
+    }
+  },
+  {
+    visitor: {
+      id: 'test_visitor'
     }
   }
 )
