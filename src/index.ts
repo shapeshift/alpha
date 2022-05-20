@@ -33,7 +33,7 @@ loadPendoAgent(
       id: 'test_visitor'
     },
     sanitizeUrl: (x: string) => {
-      console.debug('PendoConfig:sanitizeUrl')
+      console.debug('PendoConfig:sanitizeUrl', x)
       return x
     },
     events: {
