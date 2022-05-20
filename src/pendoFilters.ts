@@ -169,7 +169,7 @@ export async function filterResponse(
       )}`
     )
     if (!unexpectedKeys.every((x) => !(x in pendo))) {
-      return Response.error()
+      throw makeError(`unexpected key in fetch response would clobber an existing value`)
     }
   }
   // Override preventCodeInjection to true in case the server feels like trying
