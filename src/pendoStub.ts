@@ -106,7 +106,11 @@ export function loadPendoAgent(
         credentials: 'omit'
       })
     ).text()
-    const modifiedAgentSrc = `(function(e){\nwith(e){\n${agentSrc}\n}\n})(window.pendoEnv)\n`
+    // We intercept window.localStorage, so this is safe.
+    const modifiedAgentSrc = `(function(e){\nwith(e){\n${agentSrc.replace(
+      'disablePersistence: true',
+      'disablePersistence: false'
+    )}\n}\n})(window.pendoEnv)\n`
     const modifiedAgentBuf = new TextEncoder().encode(modifiedAgentSrc)
     const modifiedAgentUrl = URL.createObjectURL(
       new Blob([modifiedAgentBuf], { type: 'text/javascript' })

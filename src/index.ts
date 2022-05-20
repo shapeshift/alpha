@@ -5,6 +5,10 @@ loadPendoAgent(
   {
     // This is -- except for preventCodeInjection -- recapitulation of settings
     // already provided with the agent, but these are the security-critical bits.
+    // Some of these options aren't even respected by the agent unless they're
+    // embedded in its code, but this is the list parsePendoAgent() needs to
+    // validate if we ever end up using it, so it needs to be plumbed through to
+    // loadPendoAgent() as-is.
     blockAgentMetadata: false, // double-check
     blockLogRemoteAddress: true,
     dataHost: 'data.pendo.io',
@@ -12,7 +16,6 @@ loadPendoAgent(
     allowCrossOriginFrames: false,
     disableCookies: true,
     disableGlobalCSS: true,
-    disablePersistence: false,
     excludeAllText: true,
     guideValidation: true,
     localStorageOnly: true,
