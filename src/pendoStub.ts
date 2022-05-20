@@ -87,16 +87,17 @@ export function loadPendoAgent(
   pendoOptions: Record<string, unknown>,
   pendoInitializeParams: PendoInitializeParams | Promise<PendoInitializeParams>
 ) {
-  window.pendo_options = {
-    disableAutoInitialize: true,
-    ...pendoOptions
-  }
   const pendoEnv = makePendoEnv(pendoOptions)
   const pendo: Pendo = pendoEnv.pendo
   ;(window as unknown as { pendoEnv: unknown }).pendoEnv = pendoEnv
   window.pendo = pendo
   Promise.resolve(pendoInitializeParams)
-    .then((x) => pendo.initialize(x))
+    .then((x) =>
+      pendo.initialize({
+        ...x,
+        ...pendoOptions
+      })
+    )
     .catch((e) => console.error(`PendoStub: error initializing`, e))
   ;(async () => {
     const agentSrc = await (
