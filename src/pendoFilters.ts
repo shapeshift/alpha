@@ -135,6 +135,9 @@ export async function filterResponse(
     makeError(`fetch response is an array, not an object: ${JSON.stringify(resObj, undefined, 2)}`)
     return Response.error()
   }
+  // The pendo agent just assigns any returned object's keys to the global window.pendo
+  // object, so we need to make sure a malicious server can't bust anything that way.
+  // This method is super janky, but good enough, and will fail fast.
   const unexpectedKeys = Object.keys(resObj).filter(
     (x) =>
       ![

@@ -22,24 +22,22 @@ function getTransmissionData(
   body: BodyInit | undefined,
   compressMap: Map<string, string>
 ) {
-  if (url.searchParams.has('jzb')) {
+  const jzb = url.searchParams.get('jzb')
+  if (jzb !== null) {
     if (body) {
       throw makeError(`agent tried to send both jzb and post data at once`)
     }
-    const jzbObj = compressMap.get(url.searchParams.get('jzb')!)
-    if (!jzbObj) {
+    const out = compressMap.get(jzb)
+    if (!out) {
       throw makeError(`agent tried to send jzb data missing from the compressMap`)
     }
-    console.info('PendoEnv: agent sent jzb data', jzbObj)
-    return jzbObj
+    return out
   }
   if (body) {
     if (typeof body !== 'string') {
       throw makeError(`agent sent non-string post data (${body})`)
     }
-    const postObj = JSON.parse(body)
-    console.info('PendoEnv: agent sent post data', postObj)
-    return postObj
+    return JSON.parse(body)
   }
 }
 
@@ -66,8 +64,9 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
   }
 
   const transmissions = createTransmissions()
+  const storage = new Map<string, string>()
 
-  function fetchAndLog(url: string, init?: RequestInit): Promise<Response> {
+  function filteredFetch(url: string, init?: RequestInit): Promise<Response> {
     const urlObj = new URL(url)
     const dataObj = getTransmissionData(urlObj, init?.body ?? undefined, state.compressMap)
 
@@ -162,7 +161,8 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
       pendo._q.push(['track', ...args])
     },
     // We need to apply mixins to the agent's underscore.js library before the agent
-    // can start using it, so we use a hook in the setter.
+    // can start using it, so we use a hook in the setter to apply them as soon
+    // as the library is initialized.
     get _() {
       return state._!
     },
@@ -173,10 +173,13 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
       state._reduce = value.reduce
       value.mixin(underscoreMixins)
     },
-    // pendo.dom() is called with the tag name immediately after the _.reduce(_.keys())
-    // pattern we're using to capture guide tag attributes.
+    // pendo.dom() is always called with the tag name immediately after the
+    // _.reduce(_.keys()) pattern we're using to capture guide tag attributes
+    // occurs.
     get dom() {
       return function (...args: any) {
+        // This will only ever be set for the call immediately after the magic
+        // pattern is called
         if (state.lastAttributes) {
           const attributes = state.lastAttributes
           state.lastAttributes = undefined
@@ -261,7 +264,7 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
       }
       send(data?: BodyInit) {
         const url = this._url
-        fetchAndLog(url, {
+        filteredFetch(url, {
           method: this._method,
           headers: this._headers,
           credentials: this.withCredentials ? 'include' : 'same-origin',
@@ -287,13 +290,18 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
       onload: (() => void) | undefined
       onerror: (() => void) | undefined
       set src(value: string) {
-        fetchAndLog(value, { mode: 'no-cors' }).then(
+        filteredFetch(value, { mode: 'no-cors' }).then(
           () => this.onload?.(),
           () => this.onerror?.()
         )
       }
     },
     document: new Proxy(document, {
+      // Hack to stop SameSite cookie warnings while disableCookies is set
+      set(target, p, value) {
+        if (p === 'cookie') return true
+        return Reflect.set(target, p, value, target)
+      },
       get(target, p) {
         if (p === 'createElement') {
           return (tagName: string) => {
@@ -326,6 +334,9 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
       userAgent: navigator.userAgent
     },
     pendo,
+    // The agent doesn't use this, but it makes the storage relatively easy to
+    // find as window.pendoEnv.storage.
+    storage,
     // The agent doesn't use this, but it makes the log relatively easy to find
     // as window.pendoEnv.transmissionLog.
     transmissions,
@@ -344,6 +355,20 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
         if (p === 'location' && !state.sawFirstWindowLocation) {
           state.sawFirstWindowLocation = true
           return { host: '' }
+        }
+        // We use a Map instead of emulating localStorage because its API is better.
+        if (p === 'localStorage') {
+          return {
+            getItem(key: string) {
+              return storage.get(key)
+            },
+            setItem(key: string, value: string) {
+              storage.set(key, value)
+            },
+            removeItem(key: string) {
+              storage.delete(key)
+            }
+          }
         }
         // Because this is the global variable, we have to be very careful about what
         // we bind -- constructors, for example, will make broken objects if done in

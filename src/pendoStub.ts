@@ -1,5 +1,5 @@
 import { makePendoEnv } from './pendoEnv'
-import { PendoInitializeParams, Window } from './types'
+import type { Pendo, PendoInitializeParams, Window } from './types'
 
 declare const window: Window & typeof globalThis
 
@@ -82,31 +82,22 @@ declare const window: Window & typeof globalThis
   return config
 }*/
 
-// Prepare Pendo stub. This queues actions to be taken by the agent once it's loaded, and is equivalent
-// to the official minified Pendo installation snippet.
-/*export function installPendoStub() {
-  window.pendo ||= {} as Pendo
-  window.pendo._q ||= []
-  window.pendo.initialize ||= (...args: any[]) => window.pendo!._q.unshift(['initialize', ...args])
-  window.pendo.identify ||= (...args: any[]) => window.pendo!._q.push(['identify', ...args])
-  window.pendo.updateOptions ||= (...args: any[]) =>
-    window.pendo!._q.push(['updateOptions', ...args])
-  window.pendo.pageLoad ||= (...args: any[]) => window.pendo!._q.push(['pageLoad', ...args])
-  window.pendo.track ||= (...args: any[]) => window.pendo!._q.push(['track', ...args])
-}*/
-
 export function loadPendoAgent(
   agentIntegrity: string,
   pendoOptions: Record<string, unknown>,
-  pendoInitializeParams: PendoInitializeParams
+  pendoInitializeParams: PendoInitializeParams | Promise<PendoInitializeParams>
 ) {
-  window.pendo_options = pendoOptions
+  window.pendo_options = {
+    disableAutoInitialize: true,
+    ...pendoOptions
+  }
   const pendoEnv = makePendoEnv(pendoOptions)
+  const pendo: Pendo = pendoEnv.pendo
   ;(window as unknown as { pendoEnv: unknown }).pendoEnv = pendoEnv
-  window.pendo = pendoEnv.pendo
-  // installPendoStub()
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  window.pendo!.initialize(pendoInitializeParams)
+  window.pendo = pendo
+  Promise.resolve(pendoInitializeParams)
+    .then((x) => pendo.initialize(x))
+    .catch((e) => console.error(`PendoStub: error initializing`, e))
   ;(async () => {
     const agentSrc = await (
       await fetch(`https://cdn.pendo.io/agent/static/${pendoOptions.apiKey}/pendo.js`, {
@@ -134,5 +125,5 @@ export function loadPendoAgent(
     agentScriptNode.integrity = integrity
     agentScriptNode.crossOrigin = 'anonymous'
     document.body.appendChild(agentScriptNode)
-  })().catch((e) => console.error(e))
+  })().catch((e) => console.error(`PendoStub: error loading agent`, e))
 }
