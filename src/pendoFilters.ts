@@ -1,4 +1,5 @@
-import { Transmissions } from './pendoTransmissions'
+import type { Transmissions } from './pendoTransmissions'
+import type { Pendo } from './types'
 
 function makeError(msg: string): Error {
   msg = `PendoFilters: ${msg}`
@@ -123,10 +124,30 @@ export function isTransmissionAllowed(
   }
 }
 
+export const expectedResponseKeys = [
+  'autoOrdering',
+  'designerEnabled',
+  'features',
+  'globalJsUrl',
+  'guideCssUrl',
+  'guideWidget',
+  'guides',
+  'lastGuideStepSeen',
+  'normalizedUrl',
+  'preventCodeInjection',
+  'segmentFlags',
+  'throttling',
+  'props',
+  'type',
+  'children',
+  'latestDismissedAutoAt'
+]
+
 export async function filterResponse(
   url: URL,
   data: object | undefined,
-  response: Response
+  response: Response,
+  pendo: Pendo
 ): Promise<Response> {
   if (response.status < 200 || response.status >= 300) return Response.error()
   if (!response.body) return new Response(null, { status: 200 })
@@ -138,29 +159,18 @@ export async function filterResponse(
   // The pendo agent just assigns any returned object's keys to the global window.pendo
   // object, so we need to make sure a malicious server can't bust anything that way.
   // This method is super janky, but good enough, and will fail fast.
-  const unexpectedKeys = Object.keys(resObj).filter(
-    (x) =>
-      ![
-        'autoOrdering',
-        'designerEnabled',
-        'features',
-        'globalJsUrl',
-        'guideCssUrl',
-        'guideWidget',
-        'guides',
-        'lastGuideStepSeen',
-        'normalizedUrl',
-        'preventCodeInjection',
-        'segmentFlags',
-        'throttling',
-        'props',
-        'type',
-        'children'
-      ].includes(x)
-  )
+  const unexpectedKeys = Object.keys(resObj).filter((x) => !expectedResponseKeys.includes(x))
   if (unexpectedKeys.length > 0) {
-    makeError(`fetch response has unexpected keys: ${JSON.stringify(unexpectedKeys, undefined, 2)}`)
-    return Response.error()
+    console.warn(
+      `PendoFilters: fetch response has unexpected keys: ${JSON.stringify(
+        unexpectedKeys,
+        undefined,
+        2
+      )}`
+    )
+    if (!unexpectedKeys.every((x) => !(x in pendo))) {
+      return Response.error()
+    }
   }
   // Override preventCodeInjection to true in case the server feels like trying
   // to unset it

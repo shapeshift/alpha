@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { filterGuideTag, filterResponse, isTransmissionAllowed } from './pendoFilters'
+import {
+  expectedResponseKeys,
+  filterGuideTag,
+  filterResponse,
+  isTransmissionAllowed
+} from './pendoFilters'
 import { createTransmissions } from './pendoTransmissions'
 
 type UnderscoreLike = {
@@ -67,6 +72,10 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
   const storage = new Map<string, string>()
   storage.set('log-enabled', 'true')
 
+  // Forward definition b/c it's closed over in filteredFetch()
+  // eslint-disable-next-line prefer-const
+  let pendo: any
+
   function filteredFetch(url: string, init?: RequestInit): Promise<Response> {
     const urlObj = new URL(url)
     const dataObj = getTransmissionData(urlObj, init?.body ?? undefined, state.compressMap)
@@ -86,7 +95,7 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
     })
 
     return fetch(url, init)
-      .then((res) => filterResponse(urlObj, dataObj, res))
+      .then((res) => filterResponse(urlObj, dataObj, res, pendo))
       .catch((e) => {
         throw makeError(`fetch error: ${e}`)
       })
@@ -143,7 +152,7 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
     }
   }
 
-  const pendo: any = {
+  pendo = {
     // This is the standard agent stub usually set up by the snippet.
     _q: [],
     initialize(...args: any[]) {
@@ -329,17 +338,17 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
         return typeof out === 'function' ? out.bind(target) : out
       }
     }),
+    // The agent doesn't use this, but it makes it relatively easy find under window.pendoEnv.
+    expectedResponseKeys,
     // The only thing the agent actually uses here is navigator.userAgent. We
     // to explicitly remove navigator.sendBeacon(), but this is simpler.
     navigator: {
       userAgent: navigator.userAgent
     },
     pendo,
-    // The agent doesn't use this, but it makes the storage relatively easy to
-    // find as window.pendoEnv.storage.
+    // The agent doesn't use this, but it makes it relatively easy find under window.pendoEnv.
     storage,
-    // The agent doesn't use this, but it makes the log relatively easy to find
-    // as window.pendoEnv.transmissionLog.
+    // The agent doesn't use this, but it makes it relatively easy find under window.pendoEnv.
     transmissions,
     window: new Proxy(window, {
       get(target, p) {
