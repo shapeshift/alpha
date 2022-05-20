@@ -1,4 +1,4 @@
-From 3c3c165ebc5c66ebf84bfcda313dbbe52941384b Mon Sep 17 00:00:00 2001
+From 12d6371713a7d545c10d128db491e35381d25287 Mon Sep 17 00:00:00 2001
 From: MrNerdHair <mrnerdhair@gmail.com>
 Date: Thu, 14 Apr 2022 14:17:42 -0400
 Subject: [PATCH] ALPHA PATCH, DO NOT COMMIT
@@ -23,7 +23,7 @@ index a6c5c191..bcc70de3 100644
 +
 +public/alpha.modern.*
 diff --git a/headers.js b/headers.js
-index bf5f1133..48d70981 100644
+index 446072fa..1cf8dff5 100644
 --- a/headers.js
 +++ b/headers.js
 @@ -2,7 +2,12 @@ require('dotenv').config()
@@ -40,7 +40,7 @@ index bf5f1133..48d70981 100644
    'connect-src': [
      "'self'",
      'data:',
-@@ -56,8 +61,15 @@ const cspMeta = Object.entries({
+@@ -58,8 +63,15 @@ const cspMeta = Object.entries({
      // Explicitly whitelist our KeepKey versions file
      process.env.REACT_APP_KEEPKEY_VERSIONS_URL,
      process.env.REACT_APP_WALLET_MIGRATION_URL,
@@ -57,10 +57,10 @@ index bf5f1133..48d70981 100644
    'img-src': [
      "'self'",
      'data:',
-@@ -78,15 +90,31 @@ const cspMeta = Object.entries({
-     'https://raw.githack.com/shapeshift/lib/',
+@@ -81,15 +93,31 @@ const cspMeta = Object.entries({
      'https://raw.githubusercontent.com/shapeshift/lib/',
      'https://raw.githubusercontent.com/cosmostation/',
+     'https://raw.githubusercontent.com/cosmos/chain-registry/',
 +    'https://cdn.pendo.io',
 +    'https://app.pendo.io',
 +    'https://pendo-static-6047664892149760.storage.googleapis.com',
@@ -90,7 +90,7 @@ index bf5f1133..48d70981 100644
    'base-uri': ["'none'"],
    'object-src': ["'none'"],
  })
-@@ -95,12 +123,12 @@ const cspMeta = Object.entries({
+@@ -98,12 +126,12 @@ const cspMeta = Object.entries({
  
  const headers = {
    'Cache-Control': 'no-transform', // This will prevent middleboxes from munging our JS and breaking SRI if we're ever served over HTTP
