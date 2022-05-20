@@ -65,6 +65,7 @@ export function makePendoEnv(pendoOptions: Record<string, unknown>) {
 
   const transmissions = createTransmissions()
   const storage = new Map<string, string>()
+  storage.set('log-enabled', 'true')
 
   function filteredFetch(url: string, init?: RequestInit): Promise<Response> {
     const urlObj = new URL(url)
