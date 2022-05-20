@@ -33,32 +33,32 @@ loadPendoAgent(
       id: 'test_visitor'
     },
     sanitizeUrl: (x: string) => {
-      console.debug('PendoConfig:sanitizeUrl', x)
+      console.debug('PendoConfig: sanitizeUrl', x)
       return x
     },
     events: {
       ready: () => {
-        console.debug('PendoConfig:ready')
+        console.debug('PendoConfig: ready')
       },
       deliverablesLoaded: () => {
-        console.debug('PendoConfig:deliverablesLoaded')
+        console.debug('PendoConfig: deliverablesLoaded')
       },
       guidesFailed: () => {
-        console.debug('PendoConfig:guidesFailed')
+        console.debug('PendoConfig: guidesFailed')
       },
       guidesLoaded: () => {
-        console.debug('PendoConfig:guidesLoaded')
+        console.debug('PendoConfig: guidesLoaded')
       },
       validateGuide: async (signatureString: string) => {
-        console.debug('PendoConfig:validateGuide', signatureString)
+        console.debug('PendoConfig: validateGuide', signatureString)
         return true
       },
       validateLauncher: async (signatureString: string) => {
-        console.debug('PendoConfig:validateLauncher', signatureString)
+        console.debug('PendoConfig: validateLauncher', signatureString)
         return true
       },
       validateGlobalScript: async (data: unknown) => {
-        console.debug('PendoConfig:validateGlobalScript', data)
+        console.debug('PendoConfig: validateGlobalScript', data)
         return true
       }
     }
