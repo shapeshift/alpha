@@ -1,5 +1,6 @@
 import { makePendoLauncher } from './launcher'
 import { Window } from './types'
+import { doAfterLoad } from './utils'
 
 declare const window: Window & typeof globalThis
 
@@ -29,11 +30,7 @@ window.pendoLauncher = makePendoLauncher({
   apiKey: '67c2f326-a6c2-4aa2-4559-08a53b679e93'
 })
 
-document.addEventListener(
-  'load',
-  () => {
-    // TODO: Change this to arm() once the launch process is managed by the consent plugin
-    window.pendoLauncher?.launch('test_visitor_')
-  },
-  { once: true }
-)
+doAfterLoad(() => {
+  //TODO: replace this with arm() once launch it handled by the consent plugin
+  window.pendoLauncher?.launch('test_visitor_')
+})

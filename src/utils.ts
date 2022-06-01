@@ -12,3 +12,11 @@ export function deferred<T>(): [
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return [promise, resolver!, rejector!]
 }
+
+export function doAfterLoad(x: () => void) {
+  if (document.readyState === 'complete') {
+    x()
+  } else {
+    document.addEventListener('load', () => x(), { once: true })
+  }
+}
