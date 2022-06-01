@@ -29,5 +29,11 @@ window.pendoLauncher = makePendoLauncher({
   apiKey: '67c2f326-a6c2-4aa2-4559-08a53b679e93'
 })
 
-// TODO: Take this out once the launch process is managed by the consent plugin
-window.pendoLauncher?.launch()
+document.addEventListener(
+  'load',
+  () => {
+    // TODO: Change this to arm() once the launch process is managed by the consent plugin
+    window.pendoLauncher?.launch()
+  },
+  { once: true }
+)
