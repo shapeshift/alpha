@@ -1,3 +1,4 @@
+import { deferred } from '../utils'
 import { makePendoEnv } from './env'
 import { fixupTables } from './fixups'
 import { parseAgent } from './parseAgent'
@@ -5,10 +6,20 @@ import { Pendo, PendoConfig, PendoInitializeParams, Window } from './types'
 
 declare const window: Window & typeof globalThis
 
-export function loadPendoAgent(
+/**
+ * Downloads the Pendo agent, applies fixups to make it safe, and then loads it
+ * into the document. This will initiate a (potentially cached) request to Pendo
+ * servers for the agent and start to run the returned code, but the agent will
+ * not start transmitting telemetry or load guides until initialized.
+ * @returns A Promise for an initializer function, which will initialize the
+ * agent, start transmitting telemetry, and load guides. The initializer takes a
+ * visitor ID string as a parameter. (This is a one-shot thing; repeated calls
+ * will not change the visitor ID.)
+ */
+export function armPendoAgent(
   pendoConfig: PendoConfig,
   pendoInitializeParams: Omit<PendoInitializeParams, 'visitor'>
-): Promise<(x: string) => void> {
+): (x: string | Promise<string>) => void {
   const pendoEnv = makePendoEnv(pendoConfig)
   const pendo: Pendo = pendoEnv.pendo
 
@@ -31,26 +42,18 @@ export function loadPendoAgent(
     }
   })
 
-  let initializeResolver: (x: string) => void
-  new Promise<string>((resolve) => {
-    initializeResolver = resolve
-  })
-    .then(async (x) =>
+  const [agentReadyPromise, agentReadyResolver, agentReadyRejector] = deferred<void>()
+  const [initializePromise, initializeResolver] = deferred<string>()
+
+  Promise.all([initializePromise, agentReadyPromise])
+    .then(async ([x]) =>
       pendo.initialize({
-        visitor: { id: x },
+        ...(x ? { visitor: { id: x } } : {}),
         ...pendoInitializeParams,
         ...pendoConfig
       })
     )
     .catch((e) => console.error(`PendoStub: error initializing`, e))
-
-  let visitorIdSetterResolver: (x: (y: string) => void) => void
-  let visitorIdSetterRejector: (e: unknown) => void
-  const visitorIdSetterPromise = new Promise<(x: string) => void>((resolve, reject) => {
-    visitorIdSetterResolver = resolve
-    visitorIdSetterRejector = reject
-  })
-
   ;(async () => {
     const agentSrc = await (
       await fetch(`https://cdn.pendo.io/agent/static/${pendoConfig.apiKey}/pendo.js`, {
@@ -82,12 +85,12 @@ export function loadPendoAgent(
     agentScriptNode.crossOrigin = 'anonymous'
     document.body.appendChild(agentScriptNode)
   })().then(
-    () => visitorIdSetterResolver(initializeResolver),
+    () => agentReadyResolver(),
     (e) => {
       console.error(`PendoStub: error loading agent`, e)
-      visitorIdSetterRejector(e)
+      agentReadyRejector(e)
     }
   )
 
-  return visitorIdSetterPromise
+  return initializeResolver
 }
