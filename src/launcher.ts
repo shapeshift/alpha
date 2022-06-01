@@ -61,9 +61,11 @@ export function makePendoLauncher(
     arm() {
       armAgentResolver()
     },
-    launch() {
+    launch(idPrefix?: string) {
       armAgentResolver()
-      agentInitializerPromise.then((x) => x(getVisitorId()))
+      agentInitializerPromise.then((init) =>
+        init(getVisitorId().then((id) => `${idPrefix ?? ''}${id}`))
+      )
     },
     reset() {
       resetVisitorId()

@@ -33,7 +33,7 @@ document.addEventListener(
   'load',
   () => {
     // TODO: Change this to arm() once the launch process is managed by the consent plugin
-    window.pendoLauncher?.launch()
+    window.pendoLauncher?.launch('test_visitor_')
   },
   { once: true }
 )
