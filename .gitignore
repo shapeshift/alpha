@@ -15,5 +15,6 @@
 !/src/**
 !/tsconfig.json
 !/web
+!/web.exclude
 !/web.patch
 !/yarn.lock
