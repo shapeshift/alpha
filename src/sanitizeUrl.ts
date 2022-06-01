@@ -19,8 +19,7 @@ function pruneSanitizedUrlsLater() {
   sanitizedUrlsPruneTimeout = setTimeout(pruneSanitizedUrls, SANITIZED_URLS_PRUNE_DELAY_MS)
 }
 
-function sanitizeUrlInner(x: string): string {
-  const url = new URL(x)
+function sanitizeUrlObject(url: URL): URL {
   if (url.origin !== window.location.origin) {
     url.pathname = url.pathname.replace(/(?<=^|\/)[^/]{20,}(?=\/|$)/g, '***')
     url.hash = ''
@@ -30,8 +29,31 @@ function sanitizeUrlInner(x: string): string {
       '$1:***$2'
     )
   }
-  console.debug('PendoConfig: sanitizeUrl', x, url.toString())
-  return url.toString()
+  return url
+}
+
+function sanitizeUrlInner(x: string): string {
+  const [url, returnHashOnly, returnRelativeOnly] = (() => {
+    if (/^#/.test(x)) {
+      const out = new URL(window.location.href)
+      out.hash = x
+      return [out, true, false]
+    } else {
+      const result = /^(\/[^#]*)(#.*)?/.exec(x)
+      if (result) {
+        const out = new URL(window.location.href)
+        out.pathname = result[1]
+        out.hash = result[2]
+        return [out, false, true]
+      }
+    }
+    return [new URL(x), false, false]
+  })()
+  const out = sanitizeUrlObject(url)
+  console.debug('PendoConfig: sanitizeUrl', x, out.toString())
+  if (returnHashOnly) return out.hash
+  if (returnRelativeOnly) return `${out.pathname}${out.hash}`
+  return out.toString()
 }
 
 export function sanitizeUrl(x: string): string {
