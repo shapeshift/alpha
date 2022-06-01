@@ -5,10 +5,10 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build:prep": "./scripts/prep.sh",
-    "build": "yarn build:prep && ./scripts/build.sh",
+    "build": "yarn apply-patch && ./scripts/build.sh",
+    "apply-patch": "./scripts/apply-patch.sh",
     "update-patch": "./scripts/update-patch.sh",
-    "rebase-patch": "yarn build:prep && ./scripts/rebase-patch.sh && ./scripts/update-patch.sh",
+    "rebase-patch": "yarn apply-patch && ./scripts/rebase-patch.sh && yarn update-patch",
     "lint": "eslint -c .eslintrc src --ext .ts",
     "lint:fix": "yarn lint --fix",
     "test": "jest"
