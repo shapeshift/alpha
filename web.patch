@@ -3,19 +3,21 @@ Date: Tue, 31 May 2022 20:18:44 -0400
 Subject: [PATCH] ALPHA PATCH, DO NOT MERGE
 
 ---
- headers/csps/pendo.ts | 26 ++++++++++++++++++++++++++
+ headers/csps/pendo.ts | 28 ++++++++++++++++++++++++++++
  public/index.html     |  1 +
- 2 files changed, 27 insertions(+)
+ 2 files changed, 29 insertions(+)
  create mode 100644 headers/csps/pendo.ts
 
 diff --git a/headers/csps/pendo.ts b/headers/csps/pendo.ts
 new file mode 100644
-index 00000000..a40e4d5f
+index 00000000..b9fe04b1
 --- /dev/null
 +++ b/headers/csps/pendo.ts
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,28 @@
 +import type { Csp } from '../types'
 +
++// These directives come from the "Full agent functionality and displaying guides
++// in production" section of https://support.pendo.io/hc/en-us/articles/360032209131.
 +export const csp: Csp = {
 +  'connect-src': [
 +    'https://app.pendo.io',
