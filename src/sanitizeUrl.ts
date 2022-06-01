@@ -1,19 +1,58 @@
-export function sanitizeUrl(x: string): string {
-  try {
-    const url = new URL(x)
-    if (url.origin !== window.location.origin) {
-      url.pathname = url.pathname.replace(/(?<=^|\/)[^/]{20,}(?=\/|$)/g, '***')
-      url.hash = ''
-    } else {
-      url.hash = url.hash.replace(
-        /(\/accounts\/[-a-z0-9]{3,8}:[-a-zA-Z0-9]{1,32}):[^/]*(\/.*)?$/i,
-        '$1:***$2'
-      )
-    }
-    console.debug('PendoConfig: sanitizeUrl', x, url.toString())
-    return url.toString()
-  } catch (e) {
-    console.error('PendoConfig: sanitizeUrl', x, e)
-    return ''
+const sanitizedUrls = new Map<string, string>()
+const SANITIZED_URLS_MAX = 4 //TODO: increase this once concept is proven
+const SANITIZED_URLS_PRUNE_DELAY_MS = 5
+
+let sanitizedUrlsPruneTimeout: ReturnType<typeof setTimeout> | undefined = undefined
+
+function pruneSanitizedUrls() {
+  sanitizedUrlsPruneTimeout = undefined
+  const excessItemCount = sanitizedUrls.size - SANITIZED_URLS_MAX
+  if (excessItemCount <= 0) return
+  for (let i = 0; i < excessItemCount; i++) {
+    const firstKey = sanitizedUrls.keys().next().value
+    sanitizedUrls.delete(firstKey)
   }
+}
+
+function pruneSanitizedUrlsLater() {
+  if (sanitizedUrlsPruneTimeout === undefined) return
+  sanitizedUrlsPruneTimeout = setTimeout(pruneSanitizedUrls, SANITIZED_URLS_PRUNE_DELAY_MS)
+}
+
+function sanitizeUrlInner(x: string): string {
+  const url = new URL(x)
+  if (url.origin !== window.location.origin) {
+    url.pathname = url.pathname.replace(/(?<=^|\/)[^/]{20,}(?=\/|$)/g, '***')
+    url.hash = ''
+  } else {
+    url.hash = url.hash.replace(
+      /(\/accounts\/[-a-z0-9]{3,8}:[-a-zA-Z0-9]{1,32}):[^/]*(\/.*)?$/i,
+      '$1:***$2'
+    )
+  }
+  console.debug('PendoConfig: sanitizeUrl', x, url.toString())
+  return url.toString()
+}
+
+export function sanitizeUrl(x: string): string {
+  let out = sanitizedUrls.get(x)
+  if (out) {
+    // Removing and re-adding the item to make sure it's last in insertion order
+    // so it won't be dropped when pruning the cache
+    sanitizedUrls.delete(x)
+    sanitizedUrls.set(x, out)
+    return out
+  }
+  out = (() => {
+    try {
+      return sanitizeUrlInner(x)
+    } catch (e) {
+      console.error('PendoConfig: sanitizeUrl', x, e)
+      return undefined
+    }
+  })()
+  if (out === undefined) return ''
+  sanitizedUrls.set(x, out)
+  pruneSanitizedUrlsLater()
+  return out
 }
