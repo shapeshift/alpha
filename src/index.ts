@@ -3,7 +3,7 @@ import { loadPendoAgent } from './pendoStub'
 // globalThis.navigator?.serviceWorker?.register(require('./serviceWorker'))
 
 loadPendoAgent(
-  "sha256-nUoO330kQ1XlmPrDlASmM7FNAHKBncX0LZRbwnYL/V4=",
+  "sha256-5HTd4/q1dqz5q9IXMH8iAXgKTZhK6VxryPypqws4/jA=",
   {
     environmentName: 'production',
     blockAgentMetadata: false, // double-check
